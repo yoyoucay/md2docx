@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const { execFile, execFileSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -123,6 +123,9 @@ ipcMain.handle("pick:outdir", async () => {
   });
   return r.canceled ? null : r.filePaths[0];
 });
+
+// --- IPC: open file in default app -----------------------------------------
+ipcMain.handle("shell:open", (_e, filePath) => shell.openPath(filePath));
 
 // --- IPC: check pandoc is reachable ----------------------------------------
 ipcMain.handle("pandoc:check", async () => {

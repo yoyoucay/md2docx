@@ -1,53 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MD2DOCX</title>
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MD2DOCX</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <header class="bar">
-    <div class="mark">md<span class="arrow">2</span>docx</div>
-    <div id="pandoc" class="pandoc" title="Pandoc engine status">checking engine…</div>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="13 2 13 9 20 9" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="9" y1="13" x2="15" y2="13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+        <line x1="9" y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-name">md<span class="brand-accent">2</span>docx</span>
+    </div>
+    <div id="pandoc" title="Pandoc engine status">checking engine…</div>
   </header>
 
-  <main>
-    <section id="drop" class="drop" tabindex="0" aria-label="Drop Markdown files here">
-      <p class="drop-lead">Drop Markdown files here</p>
-      <p class="drop-sub">or <button id="browse" class="link">browse</button> — .md, .markdown, .txt</p>
+  <main class="main">
+    <section id="drop" class="dropzone" tabindex="0" aria-label="Drop Markdown files here">
+      <svg class="drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <p class="drop-title">Drop Markdown files here</p>
+      <p class="drop-sub">or <button id="browse" class="link-btn">browse files</button> to upload</p>
+      <p class="drop-formats">.md &middot; .markdown &middot; .txt</p>
     </section>
 
     <ul id="files" class="files" aria-label="Queued files"></ul>
 
-    <section class="opts">
-      <div class="opt">
-        <label class="opt-label">Output folder</label>
-        <div class="opt-row">
-          <span id="outdir" class="path muted">Same as each source file</span>
-          <button id="pickOut" class="btn-ghost">Change</button>
+    <section class="settings">
+      <div class="settings-head">Conversion settings</div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">Output folder</span>
+          <span id="outdir" class="setting-val muted">Same as each source file</span>
         </div>
+        <button id="pickOut" class="btn-ghost">Change</button>
       </div>
 
-      <div class="opt">
-        <label class="opt-label">Style template (reference.docx)</label>
-        <div class="opt-row">
-          <span id="tmpl" class="path muted">None — Word defaults</span>
-          <button id="pickTmpl" class="btn-ghost">Choose</button>
+      <div class="setting-sep"></div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">Style template</span>
+          <span id="tmpl" class="setting-val muted">Default (bundled)</span>
+        </div>
+        <div class="setting-actions">
           <button id="clearTmpl" class="btn-ghost hidden">Clear</button>
+          <button id="pickTmpl" class="btn-ghost">Choose</button>
         </div>
       </div>
 
-      <label class="check">
-        <input type="checkbox" id="toc" />
-        <span>Add table of contents</span>
+      <div class="setting-sep"></div>
+
+      <label class="setting setting-check">
+        <div class="setting-info">
+          <span class="setting-label">Table of contents</span>
+          <span class="setting-hint">Auto-generated from headings &middot; page break after TOC</span>
+        </div>
+        <input type="checkbox" id="toc" class="toggle"/>
       </label>
     </section>
   </main>
 
-  <footer class="foot">
-    <span id="status" class="status"></span>
-    <button id="convert" class="btn" disabled>Convert</button>
+  <footer class="actionbar">
+    <span id="status" class="action-status"></span>
+    <button id="convert" class="btn-primary" disabled>Convert</button>
   </footer>
 
   <script src="renderer.js"></script>
