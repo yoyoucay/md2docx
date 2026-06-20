@@ -24,6 +24,14 @@
       {
         "from": "vendor/pandoc",
         "to": "pandoc"
+      },
+      {
+        "from": "assets/reference.docx",
+        "to": "reference.docx"
+      },
+      {
+        "from": "assets/toc-pagebreak.lua",
+        "to": "filters/toc-pagebreak.lua"
       }
     ],
     "win": { "target": "nsis" },

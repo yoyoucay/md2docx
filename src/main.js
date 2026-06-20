@@ -20,15 +20,51 @@ function pandocPath() {
   const dev = path.join(__dirname, "..", "vendor", "pandoc", exe);
   if (fs.existsSync(dev)) return (_pandocCache = dev);
 
-  // Use where.exe (Windows) / which (Unix) to find pandoc as CMD/shell sees it.
-  // Electron's PATH may omit directories that CMD inherits from the registry.
+  // Check common Windows install locations before falling back to PATH.
+  if (process.platform === "win32") {
+    const candidates = [
+      path.join("C:\\Program Files\\Pandoc", exe),
+      path.join("C:\\Program Files (x86)\\Pandoc", exe),
+      path.join(process.env.LOCALAPPDATA || "", "Pandoc", exe),
+      path.join(process.env.APPDATA || "", "Pandoc", exe),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return (_pandocCache = p);
+    }
+  }
+
+  // Use where.exe (full path) / which to find pandoc as CMD/shell sees it.
   try {
-    const finder = process.platform === "win32" ? "where.exe" : "which";
-    const found = execFileSync(finder, [exe.replace(".exe", "")], { encoding: "utf8" }).trim().split(/\r?\n/)[0];
+    const finder = process.platform === "win32" ? "C:\\Windows\\System32\\where.exe" : "which";
+    const found = execFileSync(finder, ["pandoc"], { encoding: "utf8" }).trim().split(/\r?\n/)[0];
     if (found && fs.existsSync(found)) return (_pandocCache = found);
   } catch (_) {}
 
   return (_pandocCache = exe);
+}
+
+// --- Locate a bundled Lua filter -------------------------------------------
+function luaFilterPath(name) {
+  const packaged = path.join(process.resourcesPath || "", "filters", name);
+  if (fs.existsSync(packaged)) return packaged;
+
+  const dev = path.join(__dirname, "..", "assets", name);
+  if (fs.existsSync(dev)) return dev;
+
+  return null;
+}
+
+// --- Locate bundled reference.docx -----------------------------------------
+function bundledReferencePath() {
+  // Packaged: extraResources copies assets/reference.docx -> resources/reference.docx
+  const packaged = path.join(process.resourcesPath || "", "reference.docx");
+  if (fs.existsSync(packaged)) return packaged;
+
+  // Dev: assets/reference.docx in project root
+  const dev = path.join(__dirname, "..", "assets", "reference.docx");
+  if (fs.existsSync(dev)) return dev;
+
+  return null;
 }
 
 function createWindow() {
@@ -107,8 +143,13 @@ ipcMain.handle("convert:one", async (_e, opts) => {
   const out = path.join(outDir || path.dirname(input), base + ".docx");
 
   const args = [input, "-f", "markdown", "-t", "docx", "-o", out];
-  if (toc) args.push("--toc");
-  if (template) args.push("--reference-doc", template);
+  if (toc) {
+    args.push("--toc");
+    const filter = luaFilterPath("toc-pagebreak.lua");
+    if (filter) args.push("--lua-filter", filter);
+  }
+  const ref = template || bundledReferencePath();
+  if (ref) args.push("--reference-doc", ref);
 
   return new Promise((resolve) => {
     execFile(pandocPath(), args, (err, _stdout, stderr) => {
