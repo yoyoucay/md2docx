@@ -109,7 +109,7 @@ $("pickTmpl").addEventListener("click", async () => {
 });
 $("clearTmpl").addEventListener("click", () => {
   state.template = null;
-  $("tmpl").textContent = "None — Word defaults";
+  $("tmpl").textContent = "Default (bundled)";
   $("tmpl").classList.add("muted");
   $("clearTmpl").classList.add("hidden");
 });
