@@ -187,8 +187,23 @@ body {
 .file .state.ok  { color: var(--ok);  background: var(--ok-dim); }
 .file .state.err { color: var(--err); background: var(--err-dim); }
 
-.file .x {
+.file .retry {
   order: 3;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--r-xs);
+  transition: color .1s, background .1s;
+}
+.file .retry:hover { color: var(--accent); background: var(--accent-dim); }
+
+.file .x {
+  order: 4;
   flex-shrink: 0;
   background: none;
   border: none;
@@ -203,7 +218,7 @@ body {
 .file .x:hover { color: var(--err); background: var(--err-dim); }
 
 .file .out-path {
-  order: 4;
+  order: 5;
   flex: 0 0 100%;
   font-family: "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
   font-size: 0.68rem;
@@ -211,10 +226,14 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
+.file .out-path:hover { opacity: 0.75; }
 
 .file .err-msg {
-  order: 4;
+  order: 5;
   flex: 0 0 100%;
   font-size: 0.72rem;
   color: var(--err);
