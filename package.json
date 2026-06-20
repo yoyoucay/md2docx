@@ -1,0 +1,33 @@
+{
+  "name": "md2docx",
+  "version": "1.0.0",
+  "description": "Desktop Markdown to Word (.docx) converter, powered by Pandoc.",
+  "main": "src/main.js",
+  "author": "you",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.you.md2docx",
+    "productName": "MD2DOCX",
+    "files": ["src/**/*"],
+    "extraResources": [
+      {
+        "from": "vendor/pandoc",
+        "to": "pandoc"
+      }
+    ],
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg", "category": "public.app-category.productivity" },
+    "linux": { "target": "AppImage", "category": "Office" }
+  }
+}

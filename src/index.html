@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MD2DOCX</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="bar">
+    <div class="mark">md<span class="arrow">→</span>docx</div>
+    <div id="pandoc" class="pandoc" title="Pandoc engine status">checking engine…</div>
+  </header>
+
+  <main>
+    <section id="drop" class="drop" tabindex="0" aria-label="Drop Markdown files here">
+      <p class="drop-lead">Drop Markdown files here</p>
+      <p class="drop-sub">or <button id="browse" class="link">browse</button> — .md, .markdown, .txt</p>
+    </section>
+
+    <ul id="files" class="files" aria-label="Queued files"></ul>
+
+    <section class="opts">
+      <div class="opt">
+        <label class="opt-label">Output folder</label>
+        <div class="opt-row">
+          <span id="outdir" class="path muted">Same as each source file</span>
+          <button id="pickOut" class="btn-ghost">Change</button>
+        </div>
+      </div>
+
+      <div class="opt">
+        <label class="opt-label">Style template (reference.docx)</label>
+        <div class="opt-row">
+          <span id="tmpl" class="path muted">None — Word defaults</span>
+          <button id="pickTmpl" class="btn-ghost">Choose</button>
+          <button id="clearTmpl" class="btn-ghost hidden">Clear</button>
+        </div>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="toc" />
+        <span>Add table of contents</span>
+      </label>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span id="status" class="status"></span>
+    <button id="convert" class="btn" disabled>Convert</button>
+  </footer>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
