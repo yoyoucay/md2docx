@@ -95,6 +95,12 @@ main {
   padding: 9px 12px;
 }
 .file .name { flex: 1; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file .out-path {
+  font-family: "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-size: 0.72rem; color: var(--ok);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 260px;
+}
 .file .state { font-size: 0.74rem; color: var(--muted); }
 .file .state.ok { color: var(--ok); }
 .file .state.err { color: var(--err); }

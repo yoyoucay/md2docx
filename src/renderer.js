@@ -37,8 +37,12 @@ function render() {
     const li = document.createElement("li");
     li.className = "file";
     const stateClass = f.status === "done" ? "ok" : f.status === "failed" ? "err" : "";
+    const pathHint = f.status === "done" && f.output
+      ? `<span class="out-path" title="${f.output}">→ ${f.output}</span>`
+      : "";
     li.innerHTML = `
       <span class="name" title="${f.path}">${f.name}</span>
+      ${pathHint}
       <span class="state ${stateClass}">${labelFor(f.status)}</span>
       <button class="x" title="Remove" data-p="${f.path}">×</button>`;
     ul.appendChild(li);
@@ -119,11 +123,17 @@ $("convert").addEventListener("click", async () => {
       toc: state.toc
     });
 
-    if (r.ok) { f.status = "done"; done++; }
+    if (r.ok) { f.status = "done"; f.output = r.output; done++; }
     else { f.status = "failed"; f.error = r.error; failed++; }
     render();
   }
 
   status.textContent = `${done} converted` + (failed ? `, ${failed} failed` : "");
-  btn.disabled = state.files.length === 0;
+
+  // Show output paths briefly, then remove succeeded files.
+  setTimeout(() => {
+    state.files = state.files.filter((f) => f.status !== "done");
+    render();
+    btn.disabled = state.files.length === 0;
+  }, 2000);
 });
