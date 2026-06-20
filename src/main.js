@@ -126,10 +126,16 @@ ipcMain.handle("pick:outdir", async () => {
 
 // --- IPC: check pandoc is reachable ----------------------------------------
 ipcMain.handle("pandoc:check", async () => {
+  const p = pandocPath();
   return new Promise((resolve) => {
-    execFile(pandocPath(), ["--version"], (err, stdout) => {
-      if (err) return resolve({ ok: false, version: null });
+    execFile(p, ["--version"], (err, stdout) => {
+      if (err) {
+        console.error("[pandoc:check] failed — path:", p);
+        console.error("[pandoc:check]", err.message);
+        return resolve({ ok: false, version: null });
+      }
       const first = String(stdout).split("\n")[0].trim();
+      console.log("[pandoc:check] OK —", first);
       resolve({ ok: true, version: first });
     });
   });
@@ -151,11 +157,16 @@ ipcMain.handle("convert:one", async (_e, opts) => {
   const ref = template || bundledReferencePath();
   if (ref) args.push("--reference-doc", ref);
 
+  console.log("[convert] pandoc", args.join(" "));
   return new Promise((resolve) => {
     execFile(pandocPath(), args, (err, _stdout, stderr) => {
       if (err) {
-        resolve({ ok: false, input, error: String(stderr || err.message).trim() });
+        const msg = String(stderr || err.message).trim();
+        console.error("[convert] FAILED:", input);
+        console.error("[convert]", msg);
+        resolve({ ok: false, input, error: msg });
       } else {
+        console.log("[convert] OK:", out);
         resolve({ ok: true, input, output: out });
       }
     });

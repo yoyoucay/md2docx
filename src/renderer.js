@@ -40,9 +40,12 @@ function render() {
     const pathHint = f.status === "done" && f.output
       ? `<span class="out-path" title="${f.output}">→ ${f.output}</span>`
       : "";
+    const errHint = f.status === "failed" && f.error
+      ? `<span class="err-msg" title="${f.error.replace(/"/g, "&quot;")}">${friendlyError(f.error)}</span>`
+      : "";
     li.innerHTML = `
       <span class="name" title="${f.path}">${f.name}</span>
-      ${pathHint}
+      ${pathHint}${errHint}
       <span class="state ${stateClass}">${labelFor(f.status)}</span>
       <button class="x" title="Remove" data-p="${f.path}">×</button>`;
     ul.appendChild(li);
@@ -58,6 +61,14 @@ function render() {
 
 function labelFor(s) {
   return { queued: "queued", working: "converting…", done: "done", failed: "failed" }[s] || s;
+}
+
+function friendlyError(err) {
+  if (/permission denied/i.test(err)) return "file open in Word — close it and retry";
+  if (/No such file or directory/i.test(err)) return "output folder not found";
+  // First non-empty line of the error, truncated
+  const line = err.split(/\r?\n/).find((l) => l.trim()) || err;
+  return line.length > 80 ? line.slice(0, 77) + "…" : line;
 }
 
 // --- drag + drop -----------------------------------------------------------

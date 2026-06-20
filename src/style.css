@@ -101,6 +101,12 @@ main {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   max-width: 260px;
 }
+.file .err-msg {
+  font-size: 0.72rem; color: var(--err);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 300px;
+  cursor: help;
+}
 .file .state { font-size: 0.74rem; color: var(--muted); }
 .file .state.ok { color: var(--ok); }
 .file .state.err { color: var(--err); }
