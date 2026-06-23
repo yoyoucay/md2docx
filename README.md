@@ -1,4 +1,24 @@
-# MD2DOCX
+# MD2DOCX — Write in Markdown, Share as Word
+
+Write in Markdown. Your boss, client, or colleague needs a Word document. MD2DOCX fixes this. Drop your `.md` file. Get a polished `.docx`. Done.
+
+## Why Markdown?
+
+Markdown is how you think with AI.
+
+When you ask Claude, ChatGPT, or any AI assistant to draft a report or document — it writes Markdown. Because Markdown is clean, structured, and unambiguous. No hidden formatting. No bloated XML. Just text with meaning.
+
+That structure is what makes AI output good. Headings tell the AI what is a section. Bold marks what matters. Lists signal hierarchy. The AI uses these signals to reason about your content.
+
+So your workflow becomes:
+
+```
+Prompt AI → get Markdown → MD2DOCX → send Word doc
+```
+
+No reformatting. No copy-paste chaos. One click.
+
+---
 
 Desktop Markdown → Word (.docx) converter. Electron shell, Pandoc engine.
 
