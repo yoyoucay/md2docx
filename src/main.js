@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+﻿const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const { execFile, execFileSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -105,6 +105,16 @@ ipcMain.handle("pick:md", async () => {
   return r.canceled ? [] : r.filePaths;
 });
 
+// --- IPC: pick docx files --------------------------------------------------
+ipcMain.handle("pick:docx", async () => {
+  const r = await dialog.showOpenDialog({
+    title: "Choose Word documents",
+    filters: [{ name: "Word", extensions: ["docx"] }],
+    properties: ["openFile", "multiSelections"]
+  });
+  return r.canceled ? [] : r.filePaths;
+});
+
 // --- IPC: pick reference.docx template -------------------------------------
 ipcMain.handle("pick:template", async () => {
   const r = await dialog.showOpenDialog({
@@ -133,32 +143,38 @@ ipcMain.handle("pandoc:check", async () => {
   return new Promise((resolve) => {
     execFile(p, ["--version"], (err, stdout) => {
       if (err) {
-        console.error("[pandoc:check] failed — path:", p);
+        console.error("[pandoc:check] failed â€” path:", p);
         console.error("[pandoc:check]", err.message);
         return resolve({ ok: false, version: null });
       }
       const first = String(stdout).split("\n")[0].trim();
-      console.log("[pandoc:check] OK —", first);
+      console.log("[pandoc:check] OK â€”", first);
       resolve({ ok: true, version: first });
     });
   });
 });
 
 // --- IPC: convert one file --------------------------------------------------
-// opts: { input, outDir, template, toc }
+// opts: { input, outDir, template, toc, direction }
 ipcMain.handle("convert:one", async (_e, opts) => {
-  const { input, outDir, template, toc } = opts;
+  const { input, outDir, template, toc, direction } = opts;
   const base = path.basename(input, path.extname(input));
-  const out = path.join(outDir || path.dirname(input), base + ".docx");
 
-  const args = [input, "-f", "markdown", "-t", "docx", "-o", out];
-  if (toc) {
-    args.push("--toc");
-    const filter = luaFilterPath("toc-pagebreak.lua");
-    if (filter) args.push("--lua-filter", filter);
+  let args, out;
+  if (direction === "docx2md") {
+    out = path.join(outDir || path.dirname(input), base + ".md");
+    args = [input, "-f", "docx", "-t", "markdown", "-o", out];
+  } else {
+    out = path.join(outDir || path.dirname(input), base + ".docx");
+    args = [input, "-f", "markdown", "-t", "docx", "-o", out];
+    if (toc) {
+      args.push("--toc");
+      const filter = luaFilterPath("toc-pagebreak.lua");
+      if (filter) args.push("--lua-filter", filter);
+    }
+    const ref = template || bundledReferencePath();
+    if (ref) args.push("--reference-doc", ref);
   }
-  const ref = template || bundledReferencePath();
-  if (ref) args.push("--reference-doc", ref);
 
   console.log("[convert] pandoc", args.join(" "));
   return new Promise((resolve) => {
@@ -175,3 +191,4 @@ ipcMain.handle("convert:one", async (_e, opts) => {
     });
   });
 });
+

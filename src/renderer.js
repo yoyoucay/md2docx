@@ -4,7 +4,8 @@ const state = {
   files: [],
   outDir: null,
   template: null,
-  toc: false
+  toc: false,
+  direction: "md2docx"
 };
 
 // --- Persistent settings ---------------------------------------------------
@@ -15,6 +16,7 @@ function saveSettings() {
     outDir: state.outDir,
     template: state.template,
     toc: state.toc,
+    direction: state.direction,
   }));
 }
 
@@ -36,8 +38,35 @@ function saveSettings() {
       state.toc = true;
       $("toc").checked = true;
     }
+    if (s.direction) applyDirection(s.direction, false);
   } catch (_) {}
 })();
+
+// --- Direction toggle -------------------------------------------------------
+function applyDirection(dir, save = true) {
+  state.direction = dir;
+  state.files = [];
+
+  document.querySelectorAll(".dir-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.dir === dir)
+  );
+
+  const isMd2Docx = dir === "md2docx";
+  $("dropTitle").textContent = isMd2Docx ? "Drop Markdown files here" : "Drop Word documents here";
+  $("dropFormats").textContent = isMd2Docx ? ".md · .markdown · .txt" : ".docx";
+  $("drop").setAttribute("aria-label", $("dropTitle").textContent);
+
+  ["sepTmpl", "settingTmpl", "sepToc", "settingToc"].forEach(id =>
+    $(id).classList.toggle("hidden", !isMd2Docx)
+  );
+
+  render();
+  if (save) saveSettings();
+}
+
+document.querySelectorAll(".dir-btn").forEach(b =>
+  b.addEventListener("click", () => applyDirection(b.dataset.dir))
+);
 
 // --- Engine status ---------------------------------------------------------
 (async function checkEngine() {
@@ -54,8 +83,11 @@ function saveSettings() {
 
 // --- File queue ------------------------------------------------------------
 function addFiles(paths) {
+  const pattern = state.direction === "md2docx"
+    ? /\.(md|markdown|txt)$/i
+    : /\.docx$/i;
   for (const p of paths) {
-    if (!/\.(md|markdown|txt)$/i.test(p)) continue;
+    if (!pattern.test(p)) continue;
     if (state.files.some((f) => f.path === p)) continue;
     state.files.push({ path: p, name: p.split(/[\\/]/).pop(), status: "queued" });
   }
@@ -140,7 +172,9 @@ drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " "
 
 // --- Pickers ---------------------------------------------------------------
 async function browse() {
-  const paths = await window.api.pickMd();
+  const paths = state.direction === "md2docx"
+    ? await window.api.pickMd()
+    : await window.api.pickDocx();
   addFiles(paths);
 }
 $("browse").addEventListener("click", (e) => { e.stopPropagation(); browse(); });
@@ -193,7 +227,8 @@ $("convert").addEventListener("click", async () => {
       input: f.path,
       outDir: state.outDir,
       template: state.template,
-      toc: state.toc
+      toc: state.toc,
+      direction: state.direction
     });
 
     if (r.ok) { f.status = "done"; f.output = r.output; done++; }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Desktop Markdown to Word (.docx) converter, powered by Pandoc.",
   "main": "src/main.js",
-  "author": "you",
+  "author": "Arif Febriana <febrianaarif7@gmail.com>",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -17,25 +17,35 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.you.md2docx",
+    "appId": "com.ariffebriana.md2docx",
     "productName": "MD2DOCX",
+    "copyright": "Copyright © 2025 Arif Febriana",
     "files": ["src/**/*"],
     "extraResources": [
-      {
-        "from": "vendor/pandoc",
-        "to": "pandoc"
-      },
-      {
-        "from": "assets/reference.docx",
-        "to": "reference.docx"
-      },
-      {
-        "from": "assets/toc-pagebreak.lua",
-        "to": "filters/toc-pagebreak.lua"
-      }
+      { "from": "vendor/pandoc", "to": "pandoc" },
+      { "from": "assets/reference.docx", "to": "reference.docx" },
+      { "from": "assets/toc-pagebreak.lua", "to": "filters/toc-pagebreak.lua" }
     ],
-    "win": { "target": "nsis" },
-    "mac": { "target": "dmg", "category": "public.app-category.productivity" },
-    "linux": { "target": "AppImage", "category": "Office" }
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MD2DOCX"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Office"
+    }
   }
 }

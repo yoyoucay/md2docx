@@ -21,15 +21,20 @@
   </header>
 
   <main class="main">
+    <div class="dir-toggle" role="group" aria-label="Conversion direction">
+      <button class="dir-btn active" data-dir="md2docx">MD → DOCX</button>
+      <button class="dir-btn" data-dir="docx2md">DOCX → MD</button>
+    </div>
+
     <section id="drop" class="dropzone" tabindex="0" aria-label="Drop Markdown files here">
       <svg class="drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
-      <p class="drop-title">Drop Markdown files here</p>
+      <p id="dropTitle" class="drop-title">Drop Markdown files here</p>
       <p class="drop-sub">or <button id="browse" class="link-btn">browse files</button> to upload</p>
-      <p class="drop-formats">.md &middot; .markdown &middot; .txt</p>
+      <p id="dropFormats" class="drop-formats">.md &middot; .markdown &middot; .txt</p>
     </section>
 
     <ul id="files" class="files" aria-label="Queued files"></ul>
@@ -45,9 +50,9 @@
         <button id="pickOut" class="btn-ghost">Change</button>
       </div>
 
-      <div class="setting-sep"></div>
+      <div id="sepTmpl" class="setting-sep"></div>
 
-      <div class="setting">
+      <div id="settingTmpl" class="setting">
         <div class="setting-info">
           <span class="setting-label">Style template</span>
           <span id="tmpl" class="setting-val muted">Default (bundled)</span>
@@ -58,9 +63,9 @@
         </div>
       </div>
 
-      <div class="setting-sep"></div>
+      <div id="sepToc" class="setting-sep"></div>
 
-      <label class="setting setting-check">
+      <label id="settingToc" class="setting setting-check">
         <div class="setting-info">
           <span class="setting-label">Table of contents</span>
           <span class="setting-hint">Auto-generated from headings &middot; page break after TOC</span>

@@ -102,6 +102,37 @@ body {
   gap: 16px;
 }
 
+/* ── Direction toggle ──────────────────────────────────── */
+.dir-toggle {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r);
+  padding: 3px;
+  gap: 2px;
+  align-self: flex-start;
+}
+
+.dir-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 5px 16px;
+  border-radius: calc(var(--r) - 3px);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+
+.dir-btn.active {
+  background: var(--surface-hi);
+  color: var(--text);
+}
+
+.dir-btn:not(.active):hover { color: var(--text-sub); }
+
 /* ── Drop zone ─────────────────────────────────────────── */
 .dropzone {
   border: 1.5px dashed var(--border);
