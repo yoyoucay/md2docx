@@ -351,6 +351,27 @@ $("toc").addEventListener("change", (e) => {
   saveSettings();
 });
 
+// --- About dialog ------------------------------------------------------------
+$("aboutBtn").addEventListener("click", async () => {
+  $("aboutOverlay").classList.remove("hidden");
+  try {
+    const info = await window.api.appInfo();
+    $("aboutVersion").textContent = `v${info.version}`;
+    $("aboutMeta").textContent = `MIT License · Pandoc · Electron ${info.electron}`;
+  } catch (_) {}
+});
+$("aboutClose").addEventListener("click", () => $("aboutOverlay").classList.add("hidden"));
+$("aboutOverlay").addEventListener("click", (e) => {
+  if (e.target === $("aboutOverlay")) $("aboutOverlay").classList.add("hidden");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") $("aboutOverlay").classList.add("hidden");
+});
+$("aboutMail").addEventListener("click", (e) => {
+  e.preventDefault();
+  window.api.openUrl("mailto:febrianaarif7@gmail.com");
+});
+
 // --- Convert ---------------------------------------------------------------
 $("convert").addEventListener("click", async () => {
   const btn = $("convert");

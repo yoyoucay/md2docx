@@ -431,6 +431,76 @@ body {
 .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
 .btn-primary:not(:disabled):hover { filter: brightness(1.1); }
 
+/* ── Topbar right cluster + About ──────────────────────── */
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.icon-btn:hover { color: var(--accent); background: var(--accent-dim); }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.about-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 36px 24px;
+  text-align: center;
+  max-width: 340px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.about-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+}
+.about-close:hover { color: var(--err); background: var(--err-dim); }
+
+.about-logo { border-radius: 12px; margin-bottom: 10px; }
+.about-name { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
+.about-version {
+  margin: 2px 0 10px;
+  font-family: "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.about-desc { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-sub); line-height: 1.55; }
+.about-sep { height: 1px; background: var(--border-faint); margin: 14px 0; }
+.about-credit { margin: 0; font-size: 0.85rem; }
+.about-credit strong { color: var(--accent); }
+.about-links { margin: 4px 0 0; font-size: 0.76rem; }
+.about-links a { color: var(--text-sub); text-decoration: underline; text-underline-offset: 2px; }
+.about-links a:hover { color: var(--accent); }
+.about-meta { margin: 12px 0 0; font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.04em; }
+
 /* ── Utilities ─────────────────────────────────────────── */
 .muted  { color: var(--text-muted) !important; }
 .hidden { display: none !important; }

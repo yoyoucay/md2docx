@@ -150,6 +150,17 @@ ipcMain.handle("pick:outdir", async () => {
 // --- IPC: open file in default app -----------------------------------------
 ipcMain.handle("shell:open", (_e, filePath) => shell.openPath(filePath));
 
+// --- IPC: open URL in default browser ----------------------------------------
+ipcMain.handle("shell:openUrl", (_e, url) => {
+  if (/^https?:\/\/|^mailto:/.test(url)) shell.openExternal(url);
+});
+
+// --- IPC: app info for About dialog ------------------------------------------
+ipcMain.handle("app:info", () => ({
+  version: app.getVersion(),
+  electron: process.versions.electron,
+}));
+
 // --- IPC: expand dropped paths (folders recurse to matching files) ----------
 ipcMain.handle("paths:expand", (_e, { paths, exts }) => {
   const allow = new Set(exts.map((s) => s.toLowerCase()));

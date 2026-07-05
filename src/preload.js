@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld("api", {
   pandocCheck: () => ipcRenderer.invoke("pandoc:check"),
   convertOne: (opts) => ipcRenderer.invoke("convert:one", opts),
   openFile: (p) => ipcRenderer.invoke("shell:open", p),
+  openUrl: (u) => ipcRenderer.invoke("shell:openUrl", u),
+  appInfo: () => ipcRenderer.invoke("app:info"),
   // Electron 32+ dropped the old File.path shortcut for security; this is the replacement.
   getPathForFile: (file) => webUtils.getPathForFile(file),
   expandPaths: (paths, exts) => ipcRenderer.invoke("paths:expand", { paths, exts }),
