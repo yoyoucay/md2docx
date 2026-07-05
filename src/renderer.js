@@ -45,6 +45,7 @@ for (const sel of ["#files", ".settings", ".dropzone", ".topbar", ".actionbar"])
 
 const state = {
   files: [],
+  expanded: false,
   outDir: null,
   template: null,
   toc: false,
@@ -149,9 +150,62 @@ function addFiles(paths) {
   }
 }
 
-function render() {
-  const ul = $("files");
-  ul.innerHTML = "";
+const FOLDERS_ICON = `
+  <svg class="file-group-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M7 7V5a2 2 0 0 1 2-2h4l2 2h5a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+    <path d="M3 9a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+
+function renderGroupRow(ul) {
+  const total = state.files.length;
+  const names = state.files.map((f) => f.name).join(", ");
+  const done = state.files.filter((f) => f.status === "done").length;
+  const failed = state.files.filter((f) => f.status === "failed").length;
+  const working = state.files.some((f) => f.status === "working");
+
+  let label = `${total} queued`, stateClass = "";
+  if (working || (done + failed > 0 && done + failed < total)) {
+    label = `converting ${done + failed}/${total}`;
+  } else if (done + failed === total && total > 0) {
+    if (failed) { label = `${failed} failed`; stateClass = "err"; }
+    else { label = "done"; stateClass = "ok"; }
+  }
+
+  const retryBtn = failed
+    ? `<button class="retry" title="Retry failed files">↺</button>`
+    : "";
+
+  const nameContent = state.expanded ? `${total} files` : esc(names);
+  const li = document.createElement("li");
+  li.className = "file";
+  li.innerHTML = `
+    ${FOLDERS_ICON}
+    <span class="name group-name" title="${state.expanded ? "Click to collapse" : "Click to show all files"}">${nameContent} <span class="caret">${state.expanded ? "▴" : "▾"}</span></span>
+    ${retryBtn}
+    <span class="state ${stateClass}">${label}</span>
+    <button class="x" title="Remove all">×</button>`;
+  ul.appendChild(li);
+
+  li.querySelector(".group-name").addEventListener("click", () => {
+    state.expanded = !state.expanded;
+    render();
+  });
+
+  li.querySelector(".x").addEventListener("click", () => {
+    state.files = [];
+    state.expanded = false;
+    render();
+  });
+  const retry = li.querySelector(".retry");
+  if (retry) retry.addEventListener("click", () => {
+    for (const f of state.files) {
+      if (f.status === "failed") { f.status = "queued"; f.error = null; f.output = null; }
+    }
+    render();
+  });
+}
+
+function renderSingleRows(ul) {
   for (const f of state.files) {
     const li = document.createElement("li");
     li.className = "file";
@@ -195,6 +249,22 @@ function render() {
       window.api.openFile(span.title);
     })
   );
+}
+
+function render() {
+  const ul = $("files");
+  ul.innerHTML = "";
+  const multi = state.files.length >= 2;
+
+  if (multi) {
+    renderGroupRow(ul);
+    if (state.expanded) renderSingleRows(ul);
+  } else {
+    renderSingleRows(ul);
+  }
+
+  $("dropIconSingle").classList.toggle("hidden", multi);
+  $("dropIconMulti").classList.toggle("hidden", !multi);
 
   $("convert").disabled = state.files.length === 0;
   scheduleResize();
