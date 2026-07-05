@@ -47,9 +47,15 @@ const state = {
   files: [],
   expanded: false,
   outDir: null,
-  template: null,
+  template: null,      // currently selected template path (null = bundled default)
+  templates: [],       // saved [{ name, path }]
   toc: false,
-  direction: "md2docx"
+  direction: "md2docx",
+  collision: "rename",
+  autoConvert: false,
+  watchDir: null,
+  extraArgs: "",
+  recent: []           // [{ name, path, time }]
 };
 
 // --- Persistent settings ---------------------------------------------------
@@ -59,8 +65,14 @@ function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({
     outDir: state.outDir,
     template: state.template,
+    templates: state.templates,
     toc: state.toc,
     direction: state.direction,
+    collision: state.collision,
+    autoConvert: state.autoConvert,
+    watchDir: state.watchDir,
+    extraArgs: state.extraArgs,
+    recent: state.recent,
   }));
 }
 
@@ -72,20 +84,62 @@ function saveSettings() {
       $("outdir").textContent = s.outDir;
       $("outdir").classList.remove("muted");
     }
-    if (s.template) {
-      state.template = s.template;
-      $("tmpl").textContent = s.template.split(/[\\/]/).pop();
-      $("tmpl").classList.remove("muted");
-      $("clearTmpl").classList.remove("hidden");
+    if (Array.isArray(s.templates)) state.templates = s.templates.filter((t) => t && t.path);
+    // Migrate old single-template setting into the list.
+    if (s.template && !state.templates.some((t) => t.path === s.template)) {
+      state.templates.push({ name: s.template.split(/[\\/]/).pop(), path: s.template });
     }
-    if (s.toc) {
-      state.toc = true;
-      $("toc").checked = true;
-    }
+    if (s.template) state.template = s.template;
+    if (s.toc) { state.toc = true; $("toc").checked = true; }
+    if (s.collision) { state.collision = s.collision; $("collision").value = s.collision; }
+    if (s.autoConvert) { state.autoConvert = true; $("autoConvert").checked = true; }
+    if (s.watchDir) state.watchDir = s.watchDir;
+    if (typeof s.extraArgs === "string") { state.extraArgs = s.extraArgs; $("extraArgs").value = s.extraArgs; }
+    if (Array.isArray(s.recent)) state.recent = s.recent.slice(0, 10);
     if (s.direction) applyDirection(s.direction, false);
   } catch (_) {}
+
+  renderTemplates();
+  renderRecent();
+  validateSavedPaths();
   scheduleResize();
 })();
+
+// --- Stale-path validation: drop settings pointing at moved/deleted files ----
+async function validateSavedPaths() {
+  const problems = [];
+
+  if (state.outDir && !(await window.api.pathExists(state.outDir))) {
+    problems.push("output folder");
+    state.outDir = null;
+    $("outdir").textContent = "Same as each source file";
+    $("outdir").classList.add("muted");
+  }
+
+  const missingTmpls = [];
+  for (const t of state.templates) {
+    if (!(await window.api.pathExists(t.path))) missingTmpls.push(t.path);
+  }
+  if (missingTmpls.length) {
+    problems.push("style template");
+    state.templates = state.templates.filter((t) => !missingTmpls.includes(t.path));
+    if (missingTmpls.includes(state.template)) state.template = null;
+    renderTemplates();
+  }
+
+  if (state.watchDir && !(await window.api.pathExists(state.watchDir))) {
+    problems.push("watch folder");
+    state.watchDir = null;
+  }
+
+  if (problems.length) {
+    $("status").textContent = `saved ${problems.join(", ")} no longer exists — reset to default`;
+    saveSettings();
+  }
+
+  applyWatchUI();
+  if (state.watchDir) startWatch();
+}
 
 // --- Direction toggle -------------------------------------------------------
 function applyDirection(dir, save = true) {
@@ -104,6 +158,8 @@ function applyDirection(dir, save = true) {
   ["sepTmpl", "settingTmpl", "sepToc", "settingToc"].forEach(id =>
     $(id).classList.toggle("hidden", !isMd2Docx)
   );
+
+  if (state.watchDir) startWatch(); // re-arm watcher with the new extensions
 
   render();
   if (save) saveSettings();
@@ -143,6 +199,7 @@ function addFiles(paths) {
   const status = $("status");
   if (added) {
     status.textContent = `${added} file${added > 1 ? "s" : ""} added`;
+    if (state.autoConvert && !converting) convertAll();
   } else if (dupes && !rejected) {
     status.textContent = "already added";
   } else if (rejected) {
@@ -328,26 +385,144 @@ $("pickOut").addEventListener("click", async () => {
   }
 });
 
+// --- Template manager --------------------------------------------------------
+function renderTemplates() {
+  const sel = $("tmplSelect");
+  sel.innerHTML = `<option value="">Default (bundled)</option>`;
+  for (const t of state.templates) {
+    const opt = document.createElement("option");
+    opt.value = t.path;
+    opt.textContent = t.name;
+    sel.appendChild(opt);
+  }
+  sel.value = state.template || "";
+  if (sel.value !== (state.template || "")) { state.template = null; sel.value = ""; }
+  $("rmTmpl").classList.toggle("hidden", !state.template);
+  $("tmpl").textContent = state.template || "Default (bundled)";
+  $("tmpl").classList.toggle("muted", !state.template);
+}
+
+$("tmplSelect").addEventListener("change", () => {
+  state.template = $("tmplSelect").value || null;
+  renderTemplates();
+  saveSettings();
+});
+
 $("pickTmpl").addEventListener("click", async () => {
   const t = await window.api.pickTemplate();
-  if (t) {
-    state.template = t;
-    $("tmpl").textContent = t.split(/[\\/]/).pop();
-    $("tmpl").classList.remove("muted");
-    $("clearTmpl").classList.remove("hidden");
-    saveSettings();
+  if (!t) return;
+  if (!state.templates.some((x) => x.path === t)) {
+    state.templates.push({ name: t.split(/[\\/]/).pop(), path: t });
   }
+  state.template = t;
+  renderTemplates();
+  saveSettings();
 });
-$("clearTmpl").addEventListener("click", () => {
+
+$("rmTmpl").addEventListener("click", () => {
+  state.templates = state.templates.filter((t) => t.path !== state.template);
   state.template = null;
-  $("tmpl").textContent = "Default (bundled)";
-  $("tmpl").classList.add("muted");
-  $("clearTmpl").classList.add("hidden");
+  renderTemplates();
   saveSettings();
 });
 
 $("toc").addEventListener("change", (e) => {
   state.toc = e.target.checked;
+  saveSettings();
+});
+
+$("collision").addEventListener("change", (e) => {
+  state.collision = e.target.value;
+  saveSettings();
+});
+
+$("autoConvert").addEventListener("change", (e) => {
+  state.autoConvert = e.target.checked;
+  saveSettings();
+});
+
+$("extraArgs").addEventListener("change", (e) => {
+  state.extraArgs = e.target.value.trim();
+  saveSettings();
+});
+
+// Split extra args respecting double quotes: --metadata "title=My Doc"
+function parseExtraArgs(s) {
+  if (!s) return [];
+  return (s.match(/(?:[^\s"]+|"[^"]*")+/g) || []).map((a) => a.replace(/^"|"$/g, ""));
+}
+
+// --- Watch folder --------------------------------------------------------------
+function watchExts() {
+  return state.direction === "md2docx" ? [".md", ".markdown", ".txt"] : [".docx"];
+}
+
+function applyWatchUI() {
+  $("watchDir").textContent = state.watchDir || "Off";
+  $("watchDir").classList.toggle("muted", !state.watchDir);
+  $("clearWatch").classList.toggle("hidden", !state.watchDir);
+}
+
+async function startWatch() {
+  if (!state.watchDir) return;
+  const ok = await window.api.watchStart(state.watchDir, watchExts());
+  if (!ok) {
+    $("status").textContent = "watch folder failed to start";
+    state.watchDir = null;
+    applyWatchUI();
+    saveSettings();
+  }
+}
+
+$("pickWatch").addEventListener("click", async () => {
+  const d = await window.api.pickOutDir();
+  if (!d) return;
+  state.watchDir = d;
+  applyWatchUI();
+  saveSettings();
+  startWatch();
+});
+
+$("clearWatch").addEventListener("click", async () => {
+  state.watchDir = null;
+  await window.api.watchStop();
+  applyWatchUI();
+  saveSettings();
+});
+
+window.api.onWatchFile((p) => {
+  addFiles([p]);
+  if (!converting) convertAll();
+});
+
+// --- Recent outputs -------------------------------------------------------------
+function renderRecent() {
+  const card = $("recentCard");
+  const ul = $("recentList");
+  ul.innerHTML = "";
+  card.classList.toggle("hidden", state.recent.length === 0);
+  for (const r of state.recent) {
+    const li = document.createElement("li");
+    li.className = "recent-item";
+    li.innerHTML = `<span class="r-name">${esc(r.name)}</span><span class="r-path">${esc(r.path)}</span>`;
+    li.title = "Open " + r.path;
+    li.addEventListener("click", () => window.api.openFile(r.path));
+    ul.appendChild(li);
+  }
+  scheduleResize();
+}
+
+function addRecent(outPath) {
+  state.recent = state.recent.filter((r) => r.path !== outPath);
+  state.recent.unshift({ name: outPath.split(/[\\/]/).pop(), path: outPath, time: Date.now() });
+  state.recent = state.recent.slice(0, 10);
+  renderRecent();
+  saveSettings();
+}
+
+$("clearRecent").addEventListener("click", () => {
+  state.recent = [];
+  renderRecent();
   saveSettings();
 });
 
@@ -372,36 +547,84 @@ $("aboutMail").addEventListener("click", (e) => {
   window.api.openUrl("mailto:febrianaarif7@gmail.com");
 });
 
-// --- Convert ---------------------------------------------------------------
-$("convert").addEventListener("click", async () => {
+// --- Convert (parallel pool + cancel) ----------------------------------------
+const CONCURRENCY = 3;
+let converting = false;
+let cancelRequested = false;
+let jobSeq = 0;
+
+function setConvertButton() {
   const btn = $("convert");
-  const status = $("status");
-  btn.disabled = true;
-
-  let done = 0, failed = 0;
-  for (const f of state.files) {
-    if (f.status === "done") continue;
-    f.status = "working"; render();
-
-    const r = await window.api.convertOne({
-      input: f.path,
-      outDir: state.outDir,
-      template: state.template,
-      toc: state.toc,
-      direction: state.direction
-    });
-
-    if (r.ok) { f.status = "done"; f.output = r.output; done++; }
-    else { f.status = "failed"; f.error = r.error; failed++; }
-    render();
+  if (converting) {
+    btn.textContent = "Cancel";
+    btn.classList.add("cancelling-available");
+    btn.disabled = false;
+  } else {
+    btn.textContent = "Convert";
+    btn.classList.remove("cancelling-available");
+    btn.disabled = state.files.length === 0;
   }
+}
 
-  status.textContent = `${done} converted` + (failed ? `, ${failed} failed` : "");
+async function convertAll() {
+  if (converting) return;
+  const pending = state.files.filter((f) => f.status !== "done");
+  if (!pending.length) return;
+
+  converting = true;
+  cancelRequested = false;
+  setConvertButton();
+
+  const queue = [...pending];
+  let done = 0, failed = 0;
+
+  const worker = async () => {
+    while (queue.length && !cancelRequested) {
+      const f = queue.shift();
+      f.status = "working";
+      render(); setConvertButton();
+
+      const r = await window.api.convertOne({
+        input: f.path,
+        outDir: state.outDir,
+        template: state.template,
+        toc: state.toc,
+        direction: state.direction,
+        collision: state.collision,
+        extraArgs: parseExtraArgs(state.extraArgs),
+        jobId: ++jobSeq
+      });
+
+      if (r.ok) { f.status = "done"; f.output = r.output; done++; addRecent(r.output); }
+      else if (r.cancelled) { f.status = "queued"; }
+      else { f.status = "failed"; f.error = r.error; failed++; }
+      render(); setConvertButton();
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
+
+  converting = false;
+  setConvertButton();
+
+  $("status").textContent = cancelRequested
+    ? `cancelled — ${done} converted` + (failed ? `, ${failed} failed` : "")
+    : `${done} converted` + (failed ? `, ${failed} failed` : "");
 
   // Show output paths briefly, then remove succeeded files.
   setTimeout(() => {
     state.files = state.files.filter((f) => f.status !== "done");
     render();
-    btn.disabled = state.files.length === 0;
+    setConvertButton();
   }, 2000);
+}
+
+$("convert").addEventListener("click", () => {
+  if (converting) {
+    cancelRequested = true;
+    window.api.cancelAll();
+    $("status").textContent = "cancelling…";
+  } else {
+    convertAll();
+  }
 });

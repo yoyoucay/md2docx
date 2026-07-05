@@ -74,6 +74,20 @@
         <button id="pickOut" class="btn-ghost">Change</button>
       </div>
 
+      <div class="setting-sep"></div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">If output exists</span>
+          <span class="setting-hint">What to do when the target file is already there</span>
+        </div>
+        <select id="collision" class="select">
+          <option value="rename">Auto-rename (1)</option>
+          <option value="overwrite">Overwrite</option>
+          <option value="skip">Skip</option>
+        </select>
+      </div>
+
       <div id="sepTmpl" class="setting-sep"></div>
 
       <div id="settingTmpl" class="setting">
@@ -82,8 +96,9 @@
           <span id="tmpl" class="setting-val muted">Default (bundled)</span>
         </div>
         <div class="setting-actions">
-          <button id="clearTmpl" class="btn-ghost hidden">Clear</button>
-          <button id="pickTmpl" class="btn-ghost">Choose</button>
+          <select id="tmplSelect" class="select"><option value="">Default (bundled)</option></select>
+          <button id="rmTmpl" class="btn-ghost hidden" title="Remove selected template from list">Remove</button>
+          <button id="pickTmpl" class="btn-ghost" title="Add a reference .docx to the list">Add</button>
         </div>
       </div>
 
@@ -96,6 +111,47 @@
         </div>
         <input type="checkbox" id="toc" class="toggle"/>
       </label>
+
+      <div class="setting-sep"></div>
+
+      <label class="setting setting-check">
+        <div class="setting-info">
+          <span class="setting-label">Convert on drop</span>
+          <span class="setting-hint">Start converting immediately when files are added</span>
+        </div>
+        <input type="checkbox" id="autoConvert" class="toggle"/>
+      </label>
+
+      <div class="setting-sep"></div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">Watch folder</span>
+          <span id="watchDir" class="setting-val muted">Off</span>
+        </div>
+        <div class="setting-actions">
+          <button id="clearWatch" class="btn-ghost hidden">Stop</button>
+          <button id="pickWatch" class="btn-ghost">Choose</button>
+        </div>
+      </div>
+
+      <div class="setting-sep"></div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">Extra pandoc arguments</span>
+          <span class="setting-hint">Advanced &middot; appended to every conversion</span>
+        </div>
+        <input type="text" id="extraArgs" class="text-input" placeholder='e.g. --metadata lang=en' spellcheck="false"/>
+      </div>
+    </section>
+
+    <section id="recentCard" class="settings hidden">
+      <div class="settings-head recent-head">
+        <span>Recent outputs</span>
+        <button id="clearRecent" class="clear-recent" title="Clear history">Clear</button>
+      </div>
+      <ul id="recentList" class="recent-list"></ul>
     </section>
   </main>
 
