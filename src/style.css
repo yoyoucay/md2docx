@@ -102,6 +102,11 @@ body {
   gap: 16px;
 }
 
+/* Children keep natural height; without this the flex container squeezes
+   them (settings card collapses) instead of overflowing, which also breaks
+   the auto-resize height measurement. */
+.main > * { flex-shrink: 0; }
+
 /* ── Direction toggle ──────────────────────────────────── */
 .dir-toggle {
   display: flex;

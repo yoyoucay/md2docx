@@ -1,5 +1,48 @@
 const $ = (id) => document.getElementById(id);
 
+// --- Auto-resize window to fit content --------------------------------------
+// Measures the true desired height by summing .main's visible children.
+// (main.scrollHeight is useless here: on a flex:1 scroll container it is
+// floored at the current viewport height, so it can never shrink and lies
+// while growing.)
+function desiredHeight() {
+  const topbar = document.querySelector(".topbar");
+  const main = document.querySelector(".main");
+  const footer = document.querySelector(".actionbar");
+  const cs = getComputedStyle(main);
+  const gap = parseFloat(cs.rowGap) || 0;
+
+  let content = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  let visible = 0;
+  for (const el of main.children) {
+    const h = el.getBoundingClientRect().height;
+    if (h === 0) continue; // hidden (.files:empty, .hidden sections)
+    if (visible > 0) content += gap;
+    content += h;
+    visible++;
+  }
+  return Math.ceil(topbar.offsetHeight + content + footer.offsetHeight);
+}
+
+let resizeScheduled = false;
+function scheduleResize() {
+  if (resizeScheduled) return;
+  resizeScheduled = true;
+  requestAnimationFrame(() => {
+    resizeScheduled = false;
+    if (!window.api || !window.api.resizeWindow) return;
+    window.api.resizeWindow(desiredHeight());
+  });
+}
+
+// Catch anything that changes layout outside render() (font load, text wrap,
+// file rows gaining error/output lines). Observed elements size to content.
+const _ro = new ResizeObserver(scheduleResize);
+for (const sel of ["#files", ".settings", ".dropzone", ".topbar", ".actionbar"]) {
+  const el = document.querySelector(sel);
+  if (el) _ro.observe(el);
+}
+
 const state = {
   files: [],
   outDir: null,
@@ -40,6 +83,7 @@ function saveSettings() {
     }
     if (s.direction) applyDirection(s.direction, false);
   } catch (_) {}
+  scheduleResize();
 })();
 
 // --- Direction toggle -------------------------------------------------------
@@ -52,7 +96,7 @@ function applyDirection(dir, save = true) {
   );
 
   const isMd2Docx = dir === "md2docx";
-  $("dropTitle").textContent = isMd2Docx ? "Drop Markdown files here" : "Drop Word documents here";
+  $("dropTitle").textContent = isMd2Docx ? "Drop Markdown files or folders here" : "Drop Word documents or folders here";
   $("dropFormats").textContent = isMd2Docx ? ".md · .markdown · .txt" : ".docx";
   $("drop").setAttribute("aria-label", $("dropTitle").textContent);
 
@@ -86,12 +130,23 @@ function addFiles(paths) {
   const pattern = state.direction === "md2docx"
     ? /\.(md|markdown|txt)$/i
     : /\.docx$/i;
+  let added = 0, dupes = 0, rejected = 0;
   for (const p of paths) {
-    if (!pattern.test(p)) continue;
-    if (state.files.some((f) => f.path === p)) continue;
+    if (!pattern.test(p)) { rejected++; continue; }
+    if (state.files.some((f) => f.path === p)) { dupes++; continue; }
     state.files.push({ path: p, name: p.split(/[\\/]/).pop(), status: "queued" });
+    added++;
   }
   render();
+
+  const status = $("status");
+  if (added) {
+    status.textContent = `${added} file${added > 1 ? "s" : ""} added`;
+  } else if (dupes && !rejected) {
+    status.textContent = "already added";
+  } else if (rejected) {
+    status.textContent = `unsupported file type — expected ${state.direction === "md2docx" ? ".md/.markdown/.txt" : ".docx"}`;
+  }
 }
 
 function render() {
@@ -102,20 +157,20 @@ function render() {
     li.className = "file";
     const stateClass = f.status === "done" ? "ok" : f.status === "failed" ? "err" : "";
     const pathHint = f.status === "done" && f.output
-      ? `<span class="out-path" title="${f.output}">→ ${f.output}</span>`
+      ? `<span class="out-path" title="${esc(f.output)}">→ ${esc(f.output)}</span>`
       : "";
     const errHint = f.status === "failed" && f.error
-      ? `<span class="err-msg" title="${f.error.replace(/"/g, "&quot;")}">${friendlyError(f.error)}</span>`
+      ? `<span class="err-msg" title="${esc(f.error)}">${esc(friendlyError(f.error))}</span>`
       : "";
     const retryBtn = f.status === "failed"
-      ? `<button class="retry" title="Retry this file" data-p="${f.path}">↺</button>`
+      ? `<button class="retry" title="Retry this file" data-p="${esc(f.path)}">↺</button>`
       : "";
     li.innerHTML = `
-      <span class="name" title="${f.path}">${f.name}</span>
+      <span class="name" title="${esc(f.path)}">${esc(f.name)}</span>
       ${pathHint}${errHint}
       ${retryBtn}
       <span class="state ${stateClass}">${labelFor(f.status)}</span>
-      <button class="x" title="Remove" data-p="${f.path}">×</button>`;
+      <button class="x" title="Remove" data-p="${esc(f.path)}">×</button>`;
     ul.appendChild(li);
   }
 
@@ -142,10 +197,17 @@ function render() {
   );
 
   $("convert").disabled = state.files.length === 0;
+  scheduleResize();
 }
 
 function labelFor(s) {
   return { queued: "queued", working: "converting…", done: "done", failed: "failed" }[s] || s;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
 }
 
 function friendlyError(err) {
@@ -163,8 +225,15 @@ const drop = $("drop");
 ["dragleave", "drop"].forEach((ev) =>
   drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); })
 );
-drop.addEventListener("drop", (e) => {
-  const paths = [...e.dataTransfer.files].map((f) => f.path);
+drop.addEventListener("drop", async (e) => {
+  const raw = [...e.dataTransfer.files].map((f) => window.api.getPathForFile(f));
+  if (!raw.length) return;
+  const exts = state.direction === "md2docx" ? [".md", ".markdown", ".txt"] : [".docx"];
+  const paths = await window.api.expandPaths(raw, exts);
+  if (!paths.length) {
+    $("status").textContent = `no matching files — expected ${exts.join("/")}`;
+    return;
+  }
   addFiles(paths);
 });
 drop.addEventListener("click", browse);
