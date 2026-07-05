@@ -54,7 +54,7 @@ body {
 
 .brand { display: flex; align-items: center; gap: 8px; }
 
-.brand-icon { color: var(--accent); flex-shrink: 0; }
+.brand-icon { flex-shrink: 0; border-radius: 5px; }
 
 .brand-name {
   font-size: 0.9rem;
@@ -101,6 +101,11 @@ body {
   flex-direction: column;
   gap: 16px;
 }
+
+/* Children keep natural height; without this the flex container squeezes
+   them (settings card collapses) instead of overflowing, which also breaks
+   the auto-resize height measurement. */
+.main > * { flex-shrink: 0; }
 
 /* ── Direction toggle ──────────────────────────────────── */
 .dir-toggle {
@@ -176,8 +181,33 @@ body {
 }
 
 /* ── File list ─────────────────────────────────────────── */
-.files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Cap growth: ~4.5 rows, then scroll inside the list so the
+     auto-resizing window stays bounded with big batches. */
+  max-height: 240px;
+  overflow-y: auto;
+}
 .files:empty { display: none; }
+
+.files::-webkit-scrollbar { width: 8px; }
+.files::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.files::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+.file-group-icon {
+  order: 0;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.group-name { cursor: pointer; }
+.group-name:hover { color: var(--accent); }
+.group-name .caret { color: var(--text-muted); font-size: 0.75em; }
 
 .file {
   display: flex;
@@ -400,6 +430,146 @@ body {
 }
 .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
 .btn-primary:not(:disabled):hover { filter: brightness(1.1); }
+
+/* ── Form controls ─────────────────────────────────────── */
+.select {
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--r-sm);
+  padding: 5px 8px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  max-width: 190px;
+}
+.select:hover, .select:focus { border-color: var(--accent); outline: none; }
+
+.text-input {
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--r-sm);
+  padding: 5px 10px;
+  font-family: "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-size: 0.73rem;
+  width: 220px;
+  flex-shrink: 0;
+}
+.text-input:focus { border-color: var(--accent); outline: none; }
+.text-input::placeholder { color: var(--text-muted); }
+
+/* ── Recent outputs ────────────────────────────────────── */
+.recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clear-recent {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.clear-recent:hover { color: var(--err); background: var(--err-dim); }
+
+.recent-list { list-style: none; margin: 0; padding: 6px 0; max-height: 160px; overflow-y: auto; }
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 18px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.recent-item:hover { background: var(--surface-hi); }
+.recent-item .r-name { flex-shrink: 0; font-weight: 500; }
+.recent-item .r-path {
+  flex: 1;
+  min-width: 0;
+  font-family: "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Topbar right cluster + About ──────────────────────── */
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.icon-btn:hover { color: var(--accent); background: var(--accent-dim); }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.about-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 36px 24px;
+  text-align: center;
+  max-width: 340px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.about-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+}
+.about-close:hover { color: var(--err); background: var(--err-dim); }
+
+.about-logo { border-radius: 12px; margin-bottom: 10px; }
+.about-name { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
+.about-version {
+  margin: 2px 0 10px;
+  font-family: "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.about-desc { margin: 0 0 4px; font-size: 0.8rem; color: var(--text-sub); line-height: 1.55; }
+.about-sep { height: 1px; background: var(--border-faint); margin: 14px 0; }
+.about-credit { margin: 0; font-size: 0.85rem; }
+.about-credit strong { color: var(--accent); }
+.about-links { margin: 4px 0 0; font-size: 0.76rem; }
+.about-links a { color: var(--text-sub); text-decoration: underline; text-underline-offset: 2px; }
+.about-links a:hover { color: var(--accent); }
+.about-meta { margin: 12px 0 0; font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.04em; }
 
 /* ── Utilities ─────────────────────────────────────────── */
 .muted  { color: var(--text-muted) !important; }

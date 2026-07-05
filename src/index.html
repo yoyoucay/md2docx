@@ -9,16 +9,36 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <svg class="brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="13 2 13 9 20 9" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-        <line x1="9" y1="13" x2="15" y2="13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
-        <line x1="9" y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
-      </svg>
+      <img class="brand-icon" src="logo.png" width="20" height="20" alt=""/>
       <span class="brand-name">md<span class="brand-accent">2</span>docx</span>
     </div>
-    <div id="pandoc" title="Pandoc engine status">checking engine…</div>
+    <div class="topbar-right">
+      <div id="pandoc" title="Pandoc engine status">checking engine…</div>
+      <button id="aboutBtn" class="icon-btn" title="About MD2DOCX" aria-label="About">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="12" y1="11" x2="12" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="12" cy="8" r="1" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
   </header>
+
+  <div id="aboutOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <div class="about-card">
+      <button id="aboutClose" class="about-close" title="Close" aria-label="Close">×</button>
+      <img class="about-logo" src="logo.png" width="56" height="56" alt=""/>
+      <h2 id="aboutTitle" class="about-name">MD2DOCX</h2>
+      <p id="aboutVersion" class="about-version">v1.0.0</p>
+      <p class="about-desc">Desktop Markdown ↔ Word converter, powered by Pandoc.<br/>Fully offline — your documents never leave this machine.</p>
+      <div class="about-sep"></div>
+      <p class="about-credit">Created by <strong>Arif Febriana</strong></p>
+      <p class="about-links">
+        <a href="#" id="aboutMail">febrianaarif7@gmail.com</a>
+      </p>
+      <p id="aboutMeta" class="about-meta">MIT License · Pandoc · Electron</p>
+    </div>
+  </div>
 
   <main class="main">
     <div class="dir-toggle" role="group" aria-label="Conversion direction">
@@ -27,12 +47,16 @@
     </div>
 
     <section id="drop" class="dropzone" tabindex="0" aria-label="Drop Markdown files here">
-      <svg class="drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <svg id="dropIconSingle" class="drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
-      <p id="dropTitle" class="drop-title">Drop Markdown files here</p>
+      <svg id="dropIconMulti" class="drop-icon hidden" width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <path d="M7 7V5a2 2 0 0 1 2-2h4l2 2h5a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+        <path d="M3 9a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p id="dropTitle" class="drop-title">Drop Markdown files or folders here</p>
       <p class="drop-sub">or <button id="browse" class="link-btn">browse files</button> to upload</p>
       <p id="dropFormats" class="drop-formats">.md &middot; .markdown &middot; .txt</p>
     </section>
@@ -50,6 +74,20 @@
         <button id="pickOut" class="btn-ghost">Change</button>
       </div>
 
+      <div class="setting-sep"></div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">If output exists</span>
+          <span class="setting-hint">What to do when the target file is already there</span>
+        </div>
+        <select id="collision" class="select">
+          <option value="rename">Auto-rename (1)</option>
+          <option value="overwrite">Overwrite</option>
+          <option value="skip">Skip</option>
+        </select>
+      </div>
+
       <div id="sepTmpl" class="setting-sep"></div>
 
       <div id="settingTmpl" class="setting">
@@ -58,8 +96,9 @@
           <span id="tmpl" class="setting-val muted">Default (bundled)</span>
         </div>
         <div class="setting-actions">
-          <button id="clearTmpl" class="btn-ghost hidden">Clear</button>
-          <button id="pickTmpl" class="btn-ghost">Choose</button>
+          <select id="tmplSelect" class="select"><option value="">Default (bundled)</option></select>
+          <button id="rmTmpl" class="btn-ghost hidden" title="Remove selected template from list">Remove</button>
+          <button id="pickTmpl" class="btn-ghost" title="Add a reference .docx to the list">Add</button>
         </div>
       </div>
 
@@ -72,6 +111,47 @@
         </div>
         <input type="checkbox" id="toc" class="toggle"/>
       </label>
+
+      <div class="setting-sep"></div>
+
+      <label class="setting setting-check">
+        <div class="setting-info">
+          <span class="setting-label">Convert on drop</span>
+          <span class="setting-hint">Start converting immediately when files are added</span>
+        </div>
+        <input type="checkbox" id="autoConvert" class="toggle"/>
+      </label>
+
+      <div class="setting-sep"></div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">Watch folder</span>
+          <span id="watchDir" class="setting-val muted">Off</span>
+        </div>
+        <div class="setting-actions">
+          <button id="clearWatch" class="btn-ghost hidden">Stop</button>
+          <button id="pickWatch" class="btn-ghost">Choose</button>
+        </div>
+      </div>
+
+      <div class="setting-sep"></div>
+
+      <div class="setting">
+        <div class="setting-info">
+          <span class="setting-label">Extra pandoc arguments</span>
+          <span class="setting-hint">Advanced &middot; appended to every conversion</span>
+        </div>
+        <input type="text" id="extraArgs" class="text-input" placeholder='e.g. --metadata lang=en' spellcheck="false"/>
+      </div>
+    </section>
+
+    <section id="recentCard" class="settings hidden">
+      <div class="settings-head recent-head">
+        <span>Recent outputs</span>
+        <button id="clearRecent" class="clear-recent" title="Clear history">Clear</button>
+      </div>
+      <ul id="recentList" class="recent-list"></ul>
     </section>
   </main>
 
