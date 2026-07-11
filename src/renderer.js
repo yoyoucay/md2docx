@@ -211,6 +211,16 @@ document.querySelectorAll(".dir-btn").forEach(b =>
   }
 })();
 
+// --- Update check (silent when offline or current) ---------------------------
+(async function checkUpdate() {
+  const r = await window.api.updateCheck();
+  if (!r.update) return;
+  const pill = $("updatePill");
+  pill.textContent = `v${r.latest} available`;
+  pill.classList.remove("hidden");
+  pill.addEventListener("click", () => window.api.openUrl(r.url));
+})();
+
 // --- File queue ------------------------------------------------------------
 function addFiles(paths) {
   const pattern = inputSpec().pattern;

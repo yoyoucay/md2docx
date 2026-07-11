@@ -32,6 +32,7 @@ Desktop Markdown → Word (.docx) / PDF converter. Electron shell, Pandoc engine
 - Optional table of contents
 - Choose output folder (or write beside each source)
 - Convert-on-drop, watch folder, recent outputs, headless CLI
+- Update check on launch (GitHub releases; silent when offline)
 
 ## Setup (dev)
 ```bash

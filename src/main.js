@@ -268,6 +268,40 @@ ipcMain.on("win:resize", (e, contentHeight) => {
   win.setContentSize(width, target);
 });
 
+// --- IPC: check GitHub for a newer release -----------------------------------
+// Uses the /releases/latest redirect instead of the REST API: no rate limit,
+// no JSON. Location header ends in /releases/tag/v<semver>.
+const RELEASES_LATEST = "https://github.com/yoyoucay/md2docx/releases/latest";
+
+function cmpVersions(a, b) {
+  const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+ipcMain.handle("update:check", async () => {
+  try {
+    const res = await fetch(RELEASES_LATEST, {
+      redirect: "manual",
+      headers: { "User-Agent": `md2docx/${app.getVersion()}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    const loc = res.headers.get("location") || "";
+    const m = loc.match(/\/releases\/tag\/v?(\d+(?:\.\d+)*)/);
+    if (!m) return { update: false };
+    const latest = m[1], current = app.getVersion();
+    const update = cmpVersions(latest, current) > 0;
+    console.log(`[update:check] current ${current}, latest ${latest}${update ? " — update available" : ""}`);
+    return { update, latest, current, url: loc };
+  } catch (err) {
+    console.log("[update:check] skipped:", err.message); // offline etc. — never bother the user
+    return { update: false };
+  }
+});
+
 // --- IPC: check pandoc is reachable ----------------------------------------
 ipcMain.handle("pandoc:check", async () => {
   const p = pandocPath();

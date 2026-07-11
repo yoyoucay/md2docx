@@ -92,6 +92,19 @@ body {
 #pandoc.bad { color: var(--err); border-color: rgba(223, 84, 84, 0.25); }
 #pandoc.bad::before { background: var(--err); }
 
+/* Update-available pill */
+.update-pill {
+  font-size: 0.72rem;
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1px solid rgba(212, 118, 44, 0.35);
+  background: var(--accent-dim);
+  cursor: pointer;
+  transition: background .15s;
+}
+.update-pill:hover { background: rgba(212, 118, 44, 0.2); }
+
 /* ── Main scroll area ──────────────────────────────────── */
 .main {
   flex: 1;
