@@ -20,14 +20,16 @@ No reformatting. No copy-paste chaos. One click.
 
 ---
 
-Desktop Markdown → Word (.docx) converter. Electron shell, Pandoc engine.
+Desktop Markdown → Word (.docx) / PDF converter. Electron shell, Pandoc engine, Typst PDF backend.
 
 ## Features
 - Drag-drop or browse .md / .markdown / .txt
-- Batch convert (queue many files)
-- Custom style via reference.docx template
+- Three directions: MD → DOCX, MD → PDF, DOCX → MD
+- Batch convert (queue many files, 3 in parallel, cancellable)
+- Custom style via reference.docx template (docx output)
 - Optional table of contents
 - Choose output folder (or write beside each source)
+- Convert-on-drop, watch folder, recent outputs, headless CLI
 
 ## Setup (dev)
 ```bash
@@ -47,6 +49,14 @@ vendor/pandoc/pandoc.exe    # windows
 ```
 Get binaries: https://github.com/jgm/pandoc/releases
 (One binary per target OS. Build per-OS, or fall back to system pandoc in dev.)
+
+## PDF engine (typst)
+PDF output routes through pandoc's `--pdf-engine` using Typst. Lookup order:
+1. `vendor/typst/typst` (bundled — `typst.exe` on Windows)
+2. system `PATH`
+
+Get binaries: https://github.com/typst/typst/releases
+If typst is missing the MD → PDF toggle is disabled; docx conversion is unaffected.
 
 ## Build installers
 ```bash
@@ -70,8 +80,14 @@ src/
   style.css     theme
   renderer.js   queue + convert logic
 vendor/pandoc/  bundled engine (you add this)
+vendor/typst/   bundled PDF engine (you add this)
 ```
 
 ## Notes
 - `contextIsolation` on, `nodeIntegration` off — renderer talks to main only via `window.api`.
 - Conversion runs `execFile`, no shell, so paths with spaces are safe.
+
+## Bundled binaries & licensing
+- App code: MIT.
+- Pandoc is GPL-2.0-or-later; its `COPYING.md` / `COPYRIGHT.txt` ship next to the binary in the installed app (`resources/pandoc/`). Source: https://github.com/jgm/pandoc
+- Typst is Apache-2.0; its `LICENSE` / `NOTICE` ship in `resources/typst/`. Source: https://github.com/typst/typst

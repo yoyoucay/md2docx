@@ -138,6 +138,9 @@ body {
 
 .dir-btn:not(.active):hover { color: var(--text-sub); }
 
+.dir-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dir-btn:disabled:hover { color: var(--text-muted); }
+
 /* ── Drop zone ─────────────────────────────────────────── */
 .dropzone {
   border: 1.5px dashed var(--border);

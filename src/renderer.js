@@ -150,13 +150,17 @@ function applyDirection(dir, save = true) {
     b.classList.toggle("active", b.dataset.dir === dir)
   );
 
-  const isMd2Docx = dir === "md2docx";
-  $("dropTitle").textContent = isMd2Docx ? "Drop Markdown files or folders here" : "Drop Word documents or folders here";
-  $("dropFormats").textContent = isMd2Docx ? ".md · .markdown · .txt" : ".docx";
+  const mdInput = dir !== "docx2md";
+  $("dropTitle").textContent = mdInput ? "Drop Markdown files or folders here" : "Drop Word documents or folders here";
+  $("dropFormats").textContent = mdInput ? ".md · .markdown · .txt" : ".docx";
   $("drop").setAttribute("aria-label", $("dropTitle").textContent);
 
-  ["sepTmpl", "settingTmpl", "sepToc", "settingToc"].forEach(id =>
-    $(id).classList.toggle("hidden", !isMd2Docx)
+  // Style template is docx-only; TOC applies to both docx and pdf output.
+  ["sepTmpl", "settingTmpl"].forEach(id =>
+    $(id).classList.toggle("hidden", dir !== "md2docx")
+  );
+  ["sepToc", "settingToc"].forEach(id =>
+    $(id).classList.toggle("hidden", !mdInput)
   );
 
   if (state.watchDir) startWatch(); // re-arm watcher with the new extensions
@@ -180,13 +184,19 @@ document.querySelectorAll(".dir-btn").forEach(b =>
     el.textContent = "Pandoc not found";
     el.classList.add("bad");
   }
+  if (!r.pdf) {
+    const btn = document.querySelector('.dir-btn[data-dir="md2pdf"]');
+    btn.disabled = true;
+    btn.title = "PDF engine (typst) not found";
+    if (state.direction === "md2pdf") applyDirection("md2docx");
+  }
 })();
 
 // --- File queue ------------------------------------------------------------
 function addFiles(paths) {
-  const pattern = state.direction === "md2docx"
-    ? /\.(md|markdown|txt)$/i
-    : /\.docx$/i;
+  const pattern = state.direction === "docx2md"
+    ? /\.docx$/i
+    : /\.(md|markdown|txt)$/i;
   let added = 0, dupes = 0, rejected = 0;
   for (const p of paths) {
     if (!pattern.test(p)) { rejected++; continue; }
@@ -203,7 +213,7 @@ function addFiles(paths) {
   } else if (dupes && !rejected) {
     status.textContent = "already added";
   } else if (rejected) {
-    status.textContent = `unsupported file type — expected ${state.direction === "md2docx" ? ".md/.markdown/.txt" : ".docx"}`;
+    status.textContent = `unsupported file type — expected ${state.direction === "docx2md" ? ".docx" : ".md/.markdown/.txt"}`;
   }
 }
 
@@ -355,7 +365,7 @@ const drop = $("drop");
 drop.addEventListener("drop", async (e) => {
   const raw = [...e.dataTransfer.files].map((f) => window.api.getPathForFile(f));
   if (!raw.length) return;
-  const exts = state.direction === "md2docx" ? [".md", ".markdown", ".txt"] : [".docx"];
+  const exts = state.direction === "docx2md" ? [".docx"] : [".md", ".markdown", ".txt"];
   const paths = await window.api.expandPaths(raw, exts);
   if (!paths.length) {
     $("status").textContent = `no matching files — expected ${exts.join("/")}`;
@@ -368,9 +378,9 @@ drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " "
 
 // --- Pickers ---------------------------------------------------------------
 async function browse() {
-  const paths = state.direction === "md2docx"
-    ? await window.api.pickMd()
-    : await window.api.pickDocx();
+  const paths = state.direction === "docx2md"
+    ? await window.api.pickDocx()
+    : await window.api.pickMd();
   addFiles(paths);
 }
 $("browse").addEventListener("click", (e) => { e.stopPropagation(); browse(); });
@@ -454,7 +464,7 @@ function parseExtraArgs(s) {
 
 // --- Watch folder --------------------------------------------------------------
 function watchExts() {
-  return state.direction === "md2docx" ? [".md", ".markdown", ".txt"] : [".docx"];
+  return state.direction === "docx2md" ? [".docx"] : [".md", ".markdown", ".txt"];
 }
 
 function applyWatchUI() {

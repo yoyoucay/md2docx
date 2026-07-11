@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, ipcMain, dialog, shell, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, screen } = require("electron");
 const { execFile, execFileSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -42,6 +42,30 @@ function pandocPath() {
   } catch (_) {}
 
   return (_pandocCache = exe);
+}
+
+// --- Locate typst binary (PDF engine) ---------------------------------------
+// Priority: bundled (vendor/typst) > system PATH. Null when unavailable.
+let _typstCache;
+
+function typstPath() {
+  if (_typstCache !== undefined) return _typstCache;
+
+  const exe = process.platform === "win32" ? "typst.exe" : "typst";
+
+  const packaged = path.join(process.resourcesPath || "", "typst", exe);
+  if (fs.existsSync(packaged)) return (_typstCache = packaged);
+
+  const dev = path.join(__dirname, "..", "vendor", "typst", exe);
+  if (fs.existsSync(dev)) return (_typstCache = dev);
+
+  try {
+    const finder = process.platform === "win32" ? "C:\\Windows\\System32\\where.exe" : "which";
+    const found = execFileSync(finder, ["typst"], { encoding: "utf8" }).trim().split(/\r?\n/)[0];
+    if (found && fs.existsSync(found)) return (_typstCache = found);
+  } catch (_) {}
+
+  return (_typstCache = null);
 }
 
 // --- Locate a bundled Lua filter -------------------------------------------
@@ -98,18 +122,20 @@ function createWindow() {
 }
 
 // --- CLI mode -----------------------------------------------------------------
-// `md2docx file1.md file2.docx [--out <dir>] [--toc]` converts headless and exits.
+// `md2docx file1.md file2.docx [--out <dir>] [--toc] [--pdf]` converts headless
+// and exits. --pdf sends markdown inputs to PDF instead of docx.
 function parseCli() {
   const argv = process.argv.slice(app.isPackaged ? 1 : 2);
   const files = [];
-  let outDir = null, toc = false;
+  let outDir = null, toc = false, pdf = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--out") { outDir = argv[++i] || null; }
     else if (a === "--toc") { toc = true; }
+    else if (a === "--pdf") { pdf = true; }
     else if (/\.(md|markdown|txt|docx)$/i.test(a) && fs.existsSync(a)) files.push(path.resolve(a));
   }
-  return files.length ? { files, outDir, toc } : null;
+  return files.length ? { files, outDir, toc, pdf } : null;
 }
 
 const cli = parseCli();
@@ -118,7 +144,7 @@ app.whenReady().then(async () => {
   if (cli) {
     let failed = 0;
     for (const input of cli.files) {
-      const direction = /\.docx$/i.test(input) ? "docx2md" : "md2docx";
+      const direction = /\.docx$/i.test(input) ? "docx2md" : cli.pdf ? "md2pdf" : "md2docx";
       const r = await convertFile({ input, outDir: cli.outDir, toc: cli.toc, direction, collision: "rename" });
       if (r.ok) console.log(`OK  ${input} -> ${r.output}`);
       else { console.error(`ERR ${input}: ${r.error}`); failed++; }
@@ -240,8 +266,9 @@ ipcMain.handle("pandoc:check", async () => {
         return resolve({ ok: false, version: null });
       }
       const first = String(stdout).split("\n")[0].trim();
-      console.log("[pandoc:check] OK -", first);
-      resolve({ ok: true, version: first });
+      const pdf = !!typstPath();
+      console.log("[pandoc:check] OK -", first, pdf ? "(+typst)" : "(no typst)");
+      resolve({ ok: true, version: first, pdf });
     });
   });
 });
@@ -259,14 +286,32 @@ function uniquePath(p) {
 
 const activeJobs = new Map(); // jobId -> child process
 
+// Cover page: promote the first H1 to pandoc title metadata (rendered as a
+// title block before the TOC in both docx and pdf writers), then strip that
+// H1 from the body so it isn't rendered twice.
+function promoteH1(input, base) {
+  let title = base.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  try {
+    const src = fs.readFileSync(input, "utf8").replace(/^\uFEFF/, "");
+    const h1 = src.match(/^#\s+(.+?)\s*$/m);
+    if (h1) {
+      title = h1[1].trim();
+      const body = (src.slice(0, h1.index) + src.slice(h1.index + h1[0].length)).replace(/^\s*\n/, "");
+      const tempFile = path.join(os.tmpdir(), `md2docx-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.md`);
+      fs.writeFileSync(tempFile, body, "utf8");
+      return { pandocInput: tempFile, title, tempFile };
+    }
+  } catch (_) {}
+  return { pandocInput: input, title, tempFile: null }; // convert original untouched
+}
+
 // opts: { input, outDir, template, toc, direction, collision, extraArgs, jobId }
 function convertFile(opts) {
   const { input, outDir, template, toc, direction, collision, extraArgs, jobId } = opts;
   const base = path.basename(input, path.extname(input));
 
-  let out = direction === "docx2md"
-    ? path.join(outDir || path.dirname(input), base + ".md")
-    : path.join(outDir || path.dirname(input), base + ".docx");
+  const outExt = direction === "docx2md" ? ".md" : direction === "md2pdf" ? ".pdf" : ".docx";
+  let out = path.join(outDir || path.dirname(input), base + outExt);
 
   // Collision policy: rename (default) | overwrite | skip
   if (fs.existsSync(out)) {
@@ -279,27 +324,19 @@ function convertFile(opts) {
   let args, tempFile = null;
   if (direction === "docx2md") {
     args = [input, "-f", "docx", "-t", "markdown", "-o", out];
-  } else {
-    // Cover page: promote the first H1 to a real title page via pandoc's
-    // title metadata (which the docx writer always places before the TOC),
-    // then strip that H1 from the body so it isn't rendered twice.
-    let pandocInput = input;
-    let title = base.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    try {
-      const src = fs.readFileSync(input, "utf8");
-      const h1 = src.match(/^#\s+(.+?)\s*$/m);
-      if (h1) {
-        title = h1[1].trim();
-        const body = (src.slice(0, h1.index) + src.slice(h1.index + h1[0].length)).replace(/^\s*\n/, "");
-        tempFile = path.join(os.tmpdir(), `md2docx-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.md`);
-        fs.writeFileSync(tempFile, body, "utf8");
-        pandocInput = tempFile;
-      }
-    } catch (_) {
-      pandocInput = input; // fall back to converting the original file untouched
+  } else if (direction === "md2pdf") {
+    const typst = typstPath();
+    if (!typst) {
+      return Promise.resolve({ ok: false, input, error: "PDF engine (typst) not found" });
     }
-
-    args = [pandocInput, "-f", "markdown", "-t", "docx", "-o", out, "--metadata", `title=${title}`];
+    const p = promoteH1(input, base);
+    tempFile = p.tempFile;
+    args = [p.pandocInput, "-f", "markdown", "-o", out, "--pdf-engine", typst, "--metadata", `title=${p.title}`];
+    if (toc) args.push("--toc");
+  } else {
+    const p = promoteH1(input, base);
+    tempFile = p.tempFile;
+    args = [p.pandocInput, "-f", "markdown", "-t", "docx", "-o", out, "--metadata", `title=${p.title}`];
 
     const pageBreak = assetPath("pagebreak.xml");
     if (pageBreak) args.push("--include-before-body", pageBreak);

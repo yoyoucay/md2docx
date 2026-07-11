@@ -23,6 +23,7 @@
     "files": ["src/**/*"],
     "extraResources": [
       { "from": "vendor/pandoc", "to": "pandoc" },
+      { "from": "vendor/typst", "to": "typst" },
       { "from": "assets/reference.docx", "to": "reference.docx" },
       { "from": "assets/toc-pagebreak.lua", "to": "filters/toc-pagebreak.lua" },
       { "from": "assets/pagebreak.xml", "to": "pagebreak.xml" }
