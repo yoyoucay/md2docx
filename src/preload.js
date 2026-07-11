@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer, webUtils } = require("electron");
 contextBridge.exposeInMainWorld("api", {
   pickMd: () => ipcRenderer.invoke("pick:md"),
   pickDocx: () => ipcRenderer.invoke("pick:docx"),
+  pickPdf: () => ipcRenderer.invoke("pick:pdf"),
   pickTemplate: () => ipcRenderer.invoke("pick:template"),
   pickOutDir: () => ipcRenderer.invoke("pick:outdir"),
   pandocCheck: () => ipcRenderer.invoke("pandoc:check"),

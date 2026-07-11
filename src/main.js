@@ -122,8 +122,9 @@ function createWindow() {
 }
 
 // --- CLI mode -----------------------------------------------------------------
-// `md2docx file1.md file2.docx [--out <dir>] [--toc] [--pdf]` converts headless
-// and exits. --pdf sends markdown inputs to PDF instead of docx.
+// `md2docx file1.md file2.docx report.pdf [--out <dir>] [--toc] [--pdf]`
+// converts headless and exits. --pdf sends markdown inputs to PDF instead of
+// docx; .docx/.pdf inputs always come back as markdown.
 function parseCli() {
   const argv = process.argv.slice(app.isPackaged ? 1 : 2);
   const files = [];
@@ -133,7 +134,7 @@ function parseCli() {
     if (a === "--out") { outDir = argv[++i] || null; }
     else if (a === "--toc") { toc = true; }
     else if (a === "--pdf") { pdf = true; }
-    else if (/\.(md|markdown|txt|docx)$/i.test(a) && fs.existsSync(a)) files.push(path.resolve(a));
+    else if (/\.(md|markdown|txt|docx|pdf)$/i.test(a) && fs.existsSync(a)) files.push(path.resolve(a));
   }
   return files.length ? { files, outDir, toc, pdf } : null;
 }
@@ -144,7 +145,9 @@ app.whenReady().then(async () => {
   if (cli) {
     let failed = 0;
     for (const input of cli.files) {
-      const direction = /\.docx$/i.test(input) ? "docx2md" : cli.pdf ? "md2pdf" : "md2docx";
+      const direction = /\.docx$/i.test(input) ? "docx2md"
+        : /\.pdf$/i.test(input) ? "pdf2md"
+        : cli.pdf ? "md2pdf" : "md2docx";
       const r = await convertFile({ input, outDir: cli.outDir, toc: cli.toc, direction, collision: "rename" });
       if (r.ok) console.log(`OK  ${input} -> ${r.output}`);
       else { console.error(`ERR ${input}: ${r.error}`); failed++; }
@@ -178,6 +181,16 @@ ipcMain.handle("pick:docx", async () => {
   const r = await dialog.showOpenDialog({
     title: "Choose Word documents",
     filters: [{ name: "Word", extensions: ["docx"] }],
+    properties: ["openFile", "multiSelections"]
+  });
+  return r.canceled ? [] : r.filePaths;
+});
+
+// --- IPC: pick pdf files -----------------------------------------------------
+ipcMain.handle("pick:pdf", async () => {
+  const r = await dialog.showOpenDialog({
+    title: "Choose PDF documents",
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
     properties: ["openFile", "multiSelections"]
   });
   return r.canceled ? [] : r.filePaths;
@@ -286,6 +299,23 @@ function uniquePath(p) {
 
 const activeJobs = new Map(); // jobId -> child process
 
+// Lazy-load the PDF parser (pdfjs-based, ~2s require) only when first needed.
+let _pdf2md = null;
+function pdf2md(buf) {
+  if (!_pdf2md) _pdf2md = require("@opendocsg/pdf2md");
+  return _pdf2md(buf);
+}
+
+// Post-process converted markdown so it pastes cleanly into an AI chat:
+// no trailing whitespace, no runs of blank lines, single trailing newline.
+function cleanMarkdown(md) {
+  return md
+    .replace(/^\uFEFF/, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s*$/, "\n");
+}
+
 // Cover page: promote the first H1 to pandoc title metadata (rendered as a
 // title block before the TOC in both docx and pdf writers), then strip that
 // H1 from the body so it isn't rendered twice.
@@ -310,7 +340,8 @@ function convertFile(opts) {
   const { input, outDir, template, toc, direction, collision, extraArgs, jobId } = opts;
   const base = path.basename(input, path.extname(input));
 
-  const outExt = direction === "docx2md" ? ".md" : direction === "md2pdf" ? ".pdf" : ".docx";
+  const toMd = direction === "docx2md" || direction === "pdf2md";
+  const outExt = toMd ? ".md" : direction === "md2pdf" ? ".pdf" : ".docx";
   let out = path.join(outDir || path.dirname(input), base + outExt);
 
   // Collision policy: rename (default) | overwrite | skip
@@ -321,9 +352,27 @@ function convertFile(opts) {
     if (collision !== "overwrite") out = uniquePath(out);
   }
 
+  // PDF -> MD runs in-process (pdfjs heuristics), not through pandoc.
+  if (direction === "pdf2md") {
+    return (async () => {
+      try {
+        const md = await pdf2md(fs.readFileSync(input));
+        fs.writeFileSync(out, cleanMarkdown(md), "utf8");
+        console.log("[convert] OK (pdf2md):", out);
+        return { ok: true, input, output: out };
+      } catch (err) {
+        console.error("[convert] FAILED (pdf2md):", input, err.message);
+        return { ok: false, input, error: err.message };
+      }
+    })();
+  }
+
   let args, tempFile = null;
   if (direction === "docx2md") {
-    args = [input, "-f", "docx", "-t", "markdown", "-o", out];
+    // GFM keeps the output AI-friendly: pipe tables, ATX headings, no
+    // pandoc attribute spans or raw OOXML leftovers, no hard line wraps.
+    args = [input, "-f", "docx", "-t", "gfm-raw_html", "--wrap=none", "-o", out,
+            "--extract-media", `${base}_media`];
   } else if (direction === "md2pdf") {
     const typst = typstPath();
     if (!typst) {
@@ -358,7 +407,8 @@ function convertFile(opts) {
 
   console.log("[convert] pandoc", args.join(" "));
   return new Promise((resolve) => {
-    const child = execFile(pandocPath(), args, (err, _stdout, stderr) => {
+    // cwd = output dir so --extract-media paths inside the md stay relative.
+    const child = execFile(pandocPath(), args, { cwd: path.dirname(out) }, (err, _stdout, stderr) => {
       if (jobId != null) activeJobs.delete(jobId);
       if (tempFile) fs.unlink(tempFile, () => {});
       if (err) {
@@ -371,6 +421,9 @@ function convertFile(opts) {
         console.error("[convert]", msg);
         resolve({ ok: false, input, error: msg });
       } else {
+        if (toMd) {
+          try { fs.writeFileSync(out, cleanMarkdown(fs.readFileSync(out, "utf8")), "utf8"); } catch (_) {}
+        }
         console.log("[convert] OK:", out);
         resolve({ ok: true, input, output: out });
       }

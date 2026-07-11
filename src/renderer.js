@@ -142,6 +142,25 @@ async function validateSavedPaths() {
 }
 
 // --- Direction toggle -------------------------------------------------------
+// What each direction accepts as input.
+const INPUT_SPECS = {
+  md:   { exts: [".md", ".markdown", ".txt"], pattern: /\.(md|markdown|txt)$/i,
+          label: ".md · .markdown · .txt", drop: "Drop Markdown files or folders here",
+          pick: () => window.api.pickMd() },
+  docx: { exts: [".docx"], pattern: /\.docx$/i,
+          label: ".docx", drop: "Drop Word documents or folders here",
+          pick: () => window.api.pickDocx() },
+  pdf:  { exts: [".pdf"], pattern: /\.pdf$/i,
+          label: ".pdf", drop: "Drop PDF documents or folders here",
+          pick: () => window.api.pickPdf() },
+};
+
+function inputSpec() {
+  if (state.direction === "docx2md") return INPUT_SPECS.docx;
+  if (state.direction === "pdf2md") return INPUT_SPECS.pdf;
+  return INPUT_SPECS.md;
+}
+
 function applyDirection(dir, save = true) {
   state.direction = dir;
   state.files = [];
@@ -150,17 +169,17 @@ function applyDirection(dir, save = true) {
     b.classList.toggle("active", b.dataset.dir === dir)
   );
 
-  const mdInput = dir !== "docx2md";
-  $("dropTitle").textContent = mdInput ? "Drop Markdown files or folders here" : "Drop Word documents or folders here";
-  $("dropFormats").textContent = mdInput ? ".md · .markdown · .txt" : ".docx";
-  $("drop").setAttribute("aria-label", $("dropTitle").textContent);
+  const spec = inputSpec();
+  $("dropTitle").textContent = spec.drop;
+  $("dropFormats").textContent = spec.label;
+  $("drop").setAttribute("aria-label", spec.drop);
 
-  // Style template is docx-only; TOC applies to both docx and pdf output.
+  // Style template is docx-output-only; TOC applies to docx and pdf output.
   ["sepTmpl", "settingTmpl"].forEach(id =>
     $(id).classList.toggle("hidden", dir !== "md2docx")
   );
   ["sepToc", "settingToc"].forEach(id =>
-    $(id).classList.toggle("hidden", !mdInput)
+    $(id).classList.toggle("hidden", dir !== "md2docx" && dir !== "md2pdf")
   );
 
   if (state.watchDir) startWatch(); // re-arm watcher with the new extensions
@@ -194,9 +213,7 @@ document.querySelectorAll(".dir-btn").forEach(b =>
 
 // --- File queue ------------------------------------------------------------
 function addFiles(paths) {
-  const pattern = state.direction === "docx2md"
-    ? /\.docx$/i
-    : /\.(md|markdown|txt)$/i;
+  const pattern = inputSpec().pattern;
   let added = 0, dupes = 0, rejected = 0;
   for (const p of paths) {
     if (!pattern.test(p)) { rejected++; continue; }
@@ -213,7 +230,7 @@ function addFiles(paths) {
   } else if (dupes && !rejected) {
     status.textContent = "already added";
   } else if (rejected) {
-    status.textContent = `unsupported file type — expected ${state.direction === "docx2md" ? ".docx" : ".md/.markdown/.txt"}`;
+    status.textContent = `unsupported file type — expected ${inputSpec().exts.join("/")}`;
   }
 }
 
@@ -365,7 +382,7 @@ const drop = $("drop");
 drop.addEventListener("drop", async (e) => {
   const raw = [...e.dataTransfer.files].map((f) => window.api.getPathForFile(f));
   if (!raw.length) return;
-  const exts = state.direction === "docx2md" ? [".docx"] : [".md", ".markdown", ".txt"];
+  const exts = inputSpec().exts;
   const paths = await window.api.expandPaths(raw, exts);
   if (!paths.length) {
     $("status").textContent = `no matching files — expected ${exts.join("/")}`;
@@ -378,10 +395,7 @@ drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " "
 
 // --- Pickers ---------------------------------------------------------------
 async function browse() {
-  const paths = state.direction === "docx2md"
-    ? await window.api.pickDocx()
-    : await window.api.pickMd();
-  addFiles(paths);
+  addFiles(await inputSpec().pick());
 }
 $("browse").addEventListener("click", (e) => { e.stopPropagation(); browse(); });
 
@@ -464,7 +478,7 @@ function parseExtraArgs(s) {
 
 // --- Watch folder --------------------------------------------------------------
 function watchExts() {
-  return state.direction === "docx2md" ? [".docx"] : [".md", ".markdown", ".txt"];
+  return inputSpec().exts;
 }
 
 function applyWatchUI() {

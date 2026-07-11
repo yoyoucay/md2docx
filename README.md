@@ -24,7 +24,9 @@ Desktop Markdown → Word (.docx) / PDF converter. Electron shell, Pandoc engine
 
 ## Features
 - Drag-drop or browse .md / .markdown / .txt
-- Three directions: MD → DOCX, MD → PDF, DOCX → MD
+- Four directions: MD → DOCX, MD → PDF, DOCX → MD, PDF → MD
+- AI-ready Markdown output: GitHub-flavored (pipe tables, ATX headings),
+  no pandoc attribute junk, no hard line wraps — paste straight into AI chat
 - Batch convert (queue many files, 3 in parallel, cancellable)
 - Custom style via reference.docx template (docx output)
 - Optional table of contents
@@ -57,6 +59,12 @@ PDF output routes through pandoc's `--pdf-engine` using Typst. Lookup order:
 
 Get binaries: https://github.com/typst/typst/releases
 If typst is missing the MD → PDF toggle is disabled; docx conversion is unaffected.
+
+## PDF → MD
+Pandoc cannot read PDF, so this direction uses `@opendocsg/pdf2md` (pdfjs text
+extraction + layout heuristics) in-process. Headings, lists, and emphasis
+survive; complex tables and multi-column layouts degrade to plain text — PDFs
+carry no semantic structure to recover.
 
 ## Build installers
 ```bash
